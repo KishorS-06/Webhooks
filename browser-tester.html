@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Real-Time Webhook Tester</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        .log { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>🚀 Real-Time Webhook Tester</h1>
+    
+    <div>
+        <button onclick="sendEvent('github_push')">📝 GitHub Push</button>
+        <button onclick="sendEvent('stripe_payment')">💳 Stripe Payment</button>
+        <button onclick="sendEvent('slack_message')">💬 Slack Message</button>
+        <button onclick="sendEvent('user_signup')">👤 User Signup</button>
+        <button onclick="sendEvent('error_log')">❌ Error Log</button>
+        <button onclick="startAutoSend()">⚡ Auto Send (Every 2s)</button>
+        <button onclick="stopAutoSend()">⏹️ Stop Auto</button>
+    </div>
+
+    <div>
+        <input type="text" id="webhookUrl" placeholder="http://localhost:5001/hooks/YOUR_TOKEN" style="width: 400px;">
+        <button onclick="updateUrl()">Update URL</button>
+    </div>
+
+    <div id="logs"></div>
+
+    <script>
+        let webhookUrl = 'http://localhost:5001/hooks/YOUR_TOKEN';
+        let autoInterval = null;
+
+        function log(message, type = 'info') {
+            const logs = document.getElementById('logs');
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong>: ${message}`;
+            logs.appendChild(div);
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        function updateUrl() {
+            webhookUrl = document.getElementById('webhookUrl').value;
+            log(`Webhook URL updated: ${webhookUrl}`, 'success');
+        }
+
+        async function sendEvent(eventType) {
+            try {
+                const events = {
+                    github_push: {
+                        type: 'push',
+                        ref: 'refs/heads/main',
+                        commits: [{ message: 'Test commit', author: { name: 'Test User' } }]
+                    },
+                    stripe_payment: {
+                        type: 'payment_intent.succeeded',
+                        amount: 2000,
+                        currency: 'usd',
+                        status: 'succeeded'
+                    },
+                    slack_message: {
+                        type: 'message',
+                        user: 'U123456',
+                        text: 'Hello from webhook tester!',
+                        channel: 'C123456'
+                    },
+                    user_signup: {
+                        type: 'user.created',
+                        email: 'test@example.com',
+                        name: 'Test User',
+                        id: 12345
+                    },
+                    error_log: {
+                        type: 'error',
+                        message: 'Something went wrong!',
+                        stack: 'Error: Test error\n    at test.js:1:1',
+                        level: 'critical'
+                    }
+                };
+
+                const event = events[eventType];
+                log(`📤 Sending ${eventType} event...`);
+
+                const response = await fetch(webhookUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Event-Type': eventType
+                    },
+                    body: JSON.stringify(event)
+                });
+
+                if (response.ok) {
+                    log(`✅ ${eventType} sent successfully (${response.status})`, 'success');
+                } else {
+                    log(`❌ ${eventType} failed (${response.status})`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Error sending ${eventType}: ${error.message}`, 'error');
+            }
+        }
+
+        function startAutoSend() {
+            if (autoInterval) return;
+            
+            autoInterval = setInterval(() => {
+                const eventTypes = ['github_push', 'stripe_payment', 'slack_message', 'user_signup'];
+                const randomType = eventTypes[Math.floor(Math.random() * eventTypes.length)];
+                sendEvent(randomType);
+            }, 2000);
+            
+            log('⚡ Auto sending started (every 2 seconds)', 'success');
+        }
+
+        function stopAutoSend() {
+            if (autoInterval) {
+                clearInterval(autoInterval);
+                autoInterval = null;
+                log('⏹️ Auto sending stopped', 'success');
+            }
+        }
+
+        // Initialize
+        document.getElementById('webhookUrl').value = webhookUrl;
+        log('🚀 Real-time webhook tester ready!', 'success');
+    </script>
+</body>
+</html>
